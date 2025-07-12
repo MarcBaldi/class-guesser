@@ -22,30 +22,25 @@ onMounted(async () => {
 
   // Canvas initialisieren
   canvas = new Canvas(canvasRef.value, {
-    width: 800,
-    height: 675
+    width: 750,
+    height: 625
   })
-  // Bild laden via Promise API
-  for (let i = 0; i <= 9; i++) {
 
-    const img = await FabricImage.fromURL(`/classes/${i}.png`)
-    img.scaleToWidth(100)
-    img.scaleToHeight(100)
+  const leftCoords = [
+    25, 25, 25, 175, 325, 475, 625, 625, 625
+  ]
 
-    img.left = 25
-    img.top = 25 + i * 75
-    img.selectable = true
-    img.hasControls = true
+  const topCoords = [
+    50, 200, 350, 500, 500, 500, 350, 200, 50
+  ]
 
-    canvas.add(img)
-    canvas.setActiveObject(img)
+// Texte laden
+  const columns = 3;
+  const spacing = 150; // Abstand zwischen den Elementen
 
-    const columns = 3;
-    const spacing = 150; // Abstand zwischen den Elementen
-
-    const left = (i % columns) * spacing + 200; // Spalte (0,1,2) * Abstand + Offset
+  for (let i = 0; i <= 8; i++) {
+    const left = (i % columns) * spacing + 225; // Spalte (0,1,2) * Abstand + Offset
     const top = Math.floor(i / columns) * spacing + 10; // Zeile * Abstand + Offset
-
 
     const text = new Text(classes[i], {
       left: left, // Mitte über dem Bild
@@ -56,7 +51,44 @@ onMounted(async () => {
       selectable: false,
     })
     canvas.add(text)
+
   }
+
+  // Bild laden via Promise API
+  for (let i = 0; i <= 8; i++) {
+
+    const img = await FabricImage.fromURL(`/classes/${i}.png`)
+    img.scaleToWidth(100)
+    img.scaleToHeight(100)
+
+    const leftImg = leftCoords[i]
+    const topImg = topCoords[i]
+    img.left = leftImg
+    img.top = topImg
+    img.selectable = true
+    img.hasControls = true
+
+    canvas.add(img)
+    canvas.setActiveObject(img)
+  }
+
+  // Snap-Funktion
+  const gridSize = 150;
+  const leftOffset = 25;
+  const topOffset = 50;
+  function snapToGrid(obj) {
+
+    obj.set({
+      left: Math.min(Math.max(Math.round((obj.left - leftOffset) / gridSize) * gridSize + leftOffset, leftOffset), 625),
+      top:  Math.min(Math.max(Math.round((obj.top - topOffset) / gridSize) * gridSize + topOffset, topOffset), 500)
+    });
+    obj.setCoords(); // ganz entscheidend!
+  }
+
+  // Wähle, wann gesnappt wird:
+  canvas.on('object:moving', e => {
+    snapToGrid(e.target);
+  });
 })
 
 onBeforeUnmount(() => {
@@ -67,14 +99,23 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <h2>Class guesser</h2>
-  <div>
+  <h2 class="text-center">Class guesser</h2>
+  <p class="text-center">
+    <a href="https://bsky.app/profile/guildwars2.com">https://bsky.app/profile/guildwars2.com</a>
+  </p>
+  <div class="d-flex canvas-container">
     <canvas ref="canvasRef" width="800" height="600" style="border:1px solid #ccc;"></canvas>
   </div>
+  <p><small>NCSOFT, the interlocking NC logo, ArenaNet, Guild Wars, Guild Wars Factions, Guild Wars Nightfall, Guild Wars: Eye of the North, Guild Wars 2, and all associated logos and designs are trademarks or registered trademarks of NCSOFT Corporation. All other trademarks are the property of their respective owners.
+  </small></p>
 </template>
 
 <style scoped>
 canvas {
   border: 1px solid #ccc;
+}
+
+.canvas-container {
+  justify-content: center;
 }
 </style>
