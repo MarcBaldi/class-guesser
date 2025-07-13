@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { Canvas, FabricImage, Text } from 'fabric'
+import { Canvas, FabricImage, Text, Rect } from 'fabric'
 
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 let canvas: Canvas
@@ -35,7 +35,9 @@ onMounted(async () => {
   // Canvas initialisieren
   canvas = new Canvas(canvasRef.value, {
     width: 750,
-    height: 625
+    height: 625,
+    backgroundColor: '#EEEEEE',
+    selection: false
   })
 
   const leftCoords = [
@@ -45,14 +47,33 @@ onMounted(async () => {
   const topCoords = [
     50, 200, 350, 500, 500, 500, 350, 200, 50
   ]
-
-// Texte laden
+// Hintergrund laden
   const columns = 3;
   const spacing = 150; // Abstand zwischen den Elementen
 
   for (let i = 0; i <= 8; i++) {
+    const left = (i % columns) * spacing + 165; // Spalte (0,1,2) * Abstand + Offset
+    const top = Math.floor(i / columns) * spacing + 30; // Zeile * Abstand + Offset
+
+    const rect = new Rect({
+      left: left,
+      top: top,
+      width: 118,
+      height: 130,
+      fill: classesBg[i],
+      stroke: 'black',
+      strokeWidth: 1,
+      selectable: false
+    })
+
+    canvas.add(rect)
+  }
+
+
+// Texte laden
+  for (let i = 0; i <= 8; i++) {
     const left = (i % columns) * spacing + 225; // Spalte (0,1,2) * Abstand + Offset
-    const top = Math.floor(i / columns) * spacing + 10; // Zeile * Abstand + Offset
+    const top = Math.floor(i / columns) * spacing + 25; // Zeile * Abstand + Offset
 
     const text = new Text(classes[i], {
       left: left, // Mitte über dem Bild
@@ -66,28 +87,28 @@ onMounted(async () => {
     canvas.add(text)
 
   }
-  let hObj = [null, null, null, null, null, null, null, null, null]
+
   let imgPositions = new Array(20)
   // Bild laden via Promise API
   for (let i = 0; i <= 8; i++) {
 
     const img = await FabricImage.fromURL(`/classes/${i}.png`)
     img.scaleToWidth(100)
-    img.scaleToHeight(100)
 
     const leftImg = leftCoords[i]
     const topImg = topCoords[i]
+    const calcPos = ((topImg - 50)  / 150 * 5 + (leftImg - 25) / 150)
+
     img.left = leftImg
     img.top = topImg
     img.selectable = true
     img.hasControls = false
+    img.oldPosition = calcPos
+
+    imgPositions[calcPos] = img
 
     canvas.add(img)
     canvas.setActiveObject(img)
-
-    hObj[i] = img
-    //coords[i] = { left: leftImg, top: topCoords }
-
   }
 
   // Snap-Funktion
@@ -95,42 +116,42 @@ onMounted(async () => {
   const leftOffset = 25;
   const topOffset = 50;
   function snapToGrid(obj) {
-    if (hObj == obj) {
-      console.log("uhoh")
-    }
     const snapLeft = Math.min(Math.max(Math.round((obj.left - leftOffset) / gridSize) * gridSize + leftOffset, leftOffset), 625)
     const snapTop = Math.min(Math.max(Math.round((obj.top - topOffset) / gridSize) * gridSize + topOffset, topOffset), 500)
+    const oldPos = obj.oldPosition
+    //console.log(obj.oldPosition)
+    const zielPos = ((snapTop - 50)  / 150 * 5 + (snapLeft - 25) / 150)
+    const oldLeft = (oldPos % 5) * 150 + 25
+    const oldTop = Math.floor(oldPos / 5 ) * 150 + 50
+
+    if (imgPositions[zielPos]) {
+      const ziel = imgPositions[zielPos]
+      // Set old image
+      ziel.set({
+        left: oldLeft,
+        top: oldTop
+      });
+      ziel.setCoords()
+      ziel.oldPosition = oldPos
+      imgPositions[oldPos] = ziel
+    } else {
+      imgPositions[oldPos] = null
+    }
+    //imgPositions.find(()=>{})
     obj.set({
       left: snapLeft,
       top: snapTop
     });
     obj.setCoords(); // ganz entscheidend!
-
-    const zielPos = ((snapTop - 50)  / 150 * 5 + (snapLeft - 25) / 150)
+    obj.oldPosition = zielPos
     imgPositions[zielPos] = obj
-
-    //console.log(zielPos)
-
-    /*hObj.forEach((h)=>{
-      if (h.left == obj.left && h.top == obj.top) {
-        console.log(h)
-        console.log(obj)
-
-        h.set({
-          left: 0,
-          top: 0
-        });
-      }
-    })*/
-
-
-
   }
 
   // Wähle, wann gesnappt wird:
   canvas.on('object:modified', e => {
     snapToGrid(e.target);
   });
+
 })
 
 onBeforeUnmount(() => {
